@@ -1,0 +1,128 @@
+# ArchComplete-GS Phase 1 Configuration
+# Usage: python scripts/train.py --config configs/phase1.yaml
+
+experiment:
+  name: "phase1_semantic_3dgs"
+  output_dir: "outputs/"
+  seed: 42
+  log_every: 100
+  save_every: 1000
+  eval_every: 2000
+  wandb: true
+  wandb_project: "archcomplete-gs"
+
+# ─── Data ────────────────────────────────────────────────────────────────────
+data:
+  scene_path: "data/scenes/scene_001"     # Path to scene directory
+  images_dir: "images"                    # Relative to scene_path
+  colmap_dir: "colmap"                    # Relative to scene_path
+  depth_dir: "depths"                     # Cached depth maps (auto-generated)
+  masks_dir: "masks"                      # Cached seg masks (auto-generated)
+  image_scale: 1.0                        # Downsample factor (1.0 = full res)
+  train_split: 0.8
+  white_background: false
+
+# ─── 3DGS Model ──────────────────────────────────────────────────────────────
+gaussian:
+  init_num_gaussians: 100_000             # From COLMAP sparse points (augmented)
+  max_num_gaussians: 3_000_000
+  sh_degree: 3                            # Spherical harmonics degree
+  num_semantic_classes: 11               # arch vocabulary size
+  semantic_embed_dim: 32                  # Per-Gaussian semantic feature dim
+
+# ─── Depth Anything V2 ───────────────────────────────────────────────────────
+depth:
+  model_name: "depth-anything/Depth-Anything-V2-Large-hf"
+  use_metric_depth: true                  # Metric depth (requires indoor/outdoor flag)
+  scene_type: "outdoor"                  # "indoor" or "outdoor"
+  depth_weight: 0.1                       # Loss weight for depth supervision
+  depth_loss_type: "l1"                   # "l1" or "silog"
+  cache_depths: true                      # Cache to disk after first run
+
+# ─── Grounded-SAM Segmentor ──────────────────────────────────────────────────
+segmentation:
+  grounding_dino_model: "IDEA-Research/grounding-dino-tiny"
+  sam2_checkpoint: "checkpoints/sam2_hiera_large.pt"
+  sam2_config: "sam2_hiera_l.yaml"
+  box_threshold: 0.30
+  text_threshold: 0.25
+  cache_masks: true
+  architectural_vocabulary:
+    - "wall"
+    - "floor"
+    - "ceiling"
+    - "window"
+    - "door"
+    - "column"
+    - "beam"
+    - "staircase"
+    - "roof"
+    - "facade"
+    - "balcony"
+
+# ─── Training ────────────────────────────────────────────────────────────────
+training:
+  iterations: 30_000
+  warmup_iters: 500
+
+  # Gaussian control
+  densify_from_iter: 500
+  densify_until_iter: 15_000
+  densify_grad_threshold: 0.0002
+  opacity_reset_interval: 3000
+  min_opacity: 0.005
+
+  # Learning rates
+  lr:
+    means: 1.6e-4
+    scales: 5.0e-3
+    quats: 1.0e-3
+    opacities: 5.0e-2
+    sh0: 2.5e-3
+    shN: 2.5e-4
+    semantic_features: 1.0e-3
+
+  # Loss weights
+  loss:
+    rgb_l1: 0.8
+    rgb_ssim: 0.2
+    depth_supervision: 0.1
+    planarity: 0.05            # Planarity regularization for arch planes
+    semantic_ce: 0.5            # Cross-entropy on semantic labels
+    normal_consistency: 0.01
+
+  # Planarity regularization
+  planarity:
+    k_neighbors: 16             # KNN for plane fitting
+    semantic_classes:           # Classes that get planarity regularization
+      - "wall"
+      - "floor"
+      - "ceiling"
+      - "facade"
+    planarity_threshold: 0.02   # Max allowed distance from fitted plane
+
+# ─── Semantic Label Lifting ──────────────────────────────────────────────────
+label_lifting:
+  start_iter: 2000              # Start lifting after initial reconstruction
+  lift_every: 500               # Re-lift every N iters
+  min_votes: 3                  # Min views a Gaussian must be visible in
+  min_mask_iou: 0.5             # Min overlap with projected mask
+  smoothing_k: 8                # Smooth labels via KNN on Gaussian space
+
+# ─── Scene Graph ─────────────────────────────────────────────────────────────
+scene_graph:
+  build_after_iter: 5000
+  k_spatial: 8                  # Spatial KNN for edge construction
+  relationship_types:
+    - "wall_supports_ceiling"
+    - "window_in_wall"
+    - "door_in_wall"
+    - "floor_below_wall"
+    - "beam_connects_column"
+
+# ─── Confidence Estimation ────────────────────────────────────────────────────
+confidence:
+  transmittance_threshold: 0.7   # Below = uncertain
+  density_threshold: 0.1         # Gaussian density threshold
+  semantic_discontinuity_sigma: 0.5
+  coverage_voxel_size: 0.1       # 10cm voxels for coverage analysis

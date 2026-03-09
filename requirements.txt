@@ -1,0 +1,55 @@
+# ArchComplete-GS Phase 1 Dependencies
+# Install: pip install -r requirements.txt
+
+# Core ML
+torch>=2.1.0
+torchvision>=0.16.0
+numpy>=1.24.0
+einops>=0.7.0
+
+# 3D Gaussian Splatting
+gsplat>=1.0.0
+
+# Depth Estimation — Depth Anything V2
+transformers>=4.40.0
+huggingface_hub>=0.22.0
+
+# Segmentation — Grounded-SAM2
+# Install separately: pip install git+https://github.com/IDEA-Research/GroundingDINO
+# Install separately: pip install git+https://github.com/facebookresearch/segment-anything-2
+groundingdino-py>=0.4.0
+supervision>=0.19.0
+
+# Scene Graph
+torch-geometric>=2.5.0
+torch-scatter>=2.1.0
+torch-sparse>=0.6.18
+networkx>=3.2
+
+# Image / Vision utilities
+opencv-python>=4.9.0
+Pillow>=10.2.0
+imageio>=2.34.0
+scikit-image>=0.22.0
+matplotlib>=3.8.0
+open3d>=0.18.0
+
+# COLMAP interface
+pycolmap>=0.6.0
+
+# Config
+omegaconf>=2.3.0
+hydra-core>=1.3.0
+
+# Experiment tracking
+wandb>=0.17.0
+tqdm>=4.66.0
+
+# Math / utilities
+scipy>=1.12.0
+scikit-learn>=1.4.0
+plyfile>=1.0.0
+
+# Visualization
+viser>=0.1.0
+plotly>=5.20.0
